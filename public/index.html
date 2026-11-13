@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kindle Notes</title>
+    <style>
+      * { box-sizing: border-box; }
+
+      html, body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #fff;
+      }
+
+      header {
+        width: 100%;
+        height: 80px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-around;
+        padding: 8px;
+        background-color: #ddd;
+        border: 4px solid #777;
+        border-bottom: 2px solid #777;
+      }
+
+      button {
+        border: 4px solid #777;
+        background-color: #fff;
+        padding: 4px;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+      }
+
+      .dashed {
+        border: 4px dashed #777;
+      }
+
+      .invisible {
+        visibility: hidden;
+      }
+
+      main {
+        width: 100%;
+        height: calc(100% - 80px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #fff;
+        border: 4px solid #777;
+        border-top: 2px solid #777;
+        padding: 16px;
+      }
+
+      .turned {
+        transform: rotate(-90deg); 
+      }
+
+      .container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Nota */
+      #note {
+        position: relative;
+        background-color: #eee;
+
+        flex: 1;
+        margin: 16px;
+        border: 4px solid #777;
+
+        min-width: 0;
+        max-width: 600px;
+      }
+
+      #note::before {
+        content: "";
+        display: block;
+        padding-bottom: 100%;
+      }
+
+      #note-content {
+        position: absolute;
+        padding: 16px;
+        padding-top: 42px;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #note-visual-detail {
+        width: 40px;
+        height: 40px;
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        border-bottom: 4px solid #777;
+        border-left: 4px solid #777;
+        z-index: 10;
+        background: linear-gradient(225deg, #fff 50%, #ddd 50%);
+      }
+
+      #note-text-container {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      #note-text, #note-edit-text {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        font-family: monospace;
+        font-size: xx-large;
+        color: #000;
+        text-align: center;
+
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        text-align: start;
+      }
+
+      #note-edit-text {
+        display: none;
+        border: 4px solid #777;
+        background: #fff;
+        resize: none;
+      }
+
+      #note-footer {
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        justify-content: space-around;
+      }
+
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <!-- Nova nota -->
+      <button id="btn-new" type="button">
+        <svg width="32" height="32" viewBox="0 0 8 8">
+          <path d="M6 1H7V2H8V4H7V3H5V1H1V7H4V8H0V0H6V1ZM7 6H8V7H7V8H6V7H5V6H6V5H7V6Z" />
+        </svg>
+      </button>
+
+      <!-- Atualizar: busca notas novas no servidor -->
+      <button id="btn-update" type="button">
+        <svg width="32" height="32" viewBox="0 0 8 8">
+          <path d="M5 8H1V7H5V8ZM1 7H0V6H1V7ZM6 7H5V6H6V7ZM8 7H7V6H6V5H5V4H8V7ZM1 2H2V3H3V4H0V1H1V2ZM3 2H2V1H3V2ZM8 2H7V1H8V2ZM7 1H3V0H7V1Z"/>
+        </svg>
+      </button>
+      
+      <!-- Girar: gira a nota e icones -->
+      <button id="btn-turn" type="button" onclick="turnContent()">
+        <svg width="32" height="32" viewBox="0 0 8 8">
+          <path id="btn-turn-icon" d="M1 5V7H4V5H1ZM8 5H7V3H8V5ZM4 1H6V2H4V3H3V2H2V1H3V0H4V1ZM7 3H6V2H7V3ZM5 8H0V4H5V8Z" />
+        </svg>
+      </button>
+
+      <!-- Lixeira: abre/fecha a lixeira -->
+      <button id="btn-open-trash" type="button">
+        <svg width="32" height="32" viewBox="0 0 8 8">
+          <path d="M3 2H5V1H6V2H8V3H7V8H1V3H0V2H2V1H3V2ZM2 3V7H6V3H2ZM5 1H3V0H5V1Z" />
+        </svg>
+      </button>
+    </header>
+
+    <main>
+      <div id="container" class="container">
+        <!-- Previous note (IF it exists) -->
+        <button id="btn-prev" type="button" onclick='navegateNote(-1)' class='invisible'>
+          <svg width="32" height="32" viewBox="0 0 8 8">
+            <path d="M3 6H2 1V5H0V3h1V2h1V1h1V0h2V1H3V2H2V3H1V5h1V6 7H3V8H6V6H8V2H6V0H5V3H7V5H5V7H3" />
+          </svg>
+        </button>
+
+        <div id="note">
+          <div id="note-visual-detail"></div>
+          
+          <div id="note-content">
+            <div id="note-text-container">
+              <p id="note-text"></p>
+              <textarea id="note-edit-text" maxlength="160"></textarea>
+            </div>
+
+            <div id="note-footer" class='invisible'>
+              <!-- Editar / Salvar / Restaurar -->
+              <button id="btn-note-right" type="button">
+                <svg width="32" height="32" viewBox="0 0 8 8">
+                  <path id="btn-note-right-icon" d="M2 6H4V7H3V8H0V5H1V4H2V6ZM5 6H4V5H5V6ZM6 5H5V4H6V5ZM3 4H2V3H3V4ZM7 4H6V3H7V4ZM4 3H3V2H4V3ZM8 3H7V2H8V3ZM5 2H4V1H5V2ZM7 2H6V1H7V2ZM6 1H5V0H6V1Z"/>
+                </svg>
+              </button>
+
+              <!-- Lixeira / Cancelar / Deletar -->
+              <button id="btn-note-left" type="button">
+                <svg width="32" height="32" viewBox="0 0 8 8">
+                  <path id="btn-note-left-icon" d="M3 2H5V1H6V2H8V3H7V8H1V3H0V2H2V1H3V2ZM2 3V7H6V3H2ZM5 1H3V0H5V1Z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Next note (IF it exists) -->
+        <button id="btn-next" type="button" onclick='navegateNote(1)' class='invisible'>
+          <svg width="32" height="32" viewBox="0 0 8 8">
+            <path d="M5 6H6 7V5H8V3H7V2H6V1H5V0H3V1H5V2H6V3H7V5H6V6 7H5V8H2V6H0V2H2V0H3V3H1V5H3V7H5" />
+          </svg>
+        </button>
+      </div>
+    </main>
+
+    <script>
+      var elBtnNew = document.getElementById('btn-new');
+      var elBtnUpdate = document.getElementById('btn-update');
+      var elBtnTurn = document.getElementById('btn-turn');
+      var elBtnTurnIcon = document.getElementById('btn-turn-icon');
+      var elBtnOpenTrash = document.getElementById('btn-open-trash');
+      var elNote = document.getElementById('note');
+      var elNoteVisualDetail = document.getElementById('note-visual-detail');
+      var elNoteText = document.getElementById('note-text')
+      var elNoteEditText = document.getElementById('note-edit-text')
+      var elBtnNoteRight = document.getElementById('btn-note-right');
+      var elBtnNoteRightIcon = document.getElementById('btn-note-right-icon');
+      var elBtnNoteLeft = document.getElementById('btn-note-left');
+      var elBtnNoteLeftIcon = document.getElementById('btn-note-left-icon');
+      var elNoteFooter = document.getElementById('note-footer');
+      var elBtnNext = document.getElementById('btn-next');
+      var elBtnPrev = document.getElementById('btn-prev');
+
+      var turnIconLeftPath = "M1 5V7H4V5H1ZM8 5H7V3H8V5ZM4 1H6V2H4V3H3V2H2V1H3V0H4V1ZM7 3H6V2H7V3ZM5 8H0V4H5V8Z";
+      var turnIconRightPath = "M8 8H3V4H8V8ZM1 5H0V3H1V5ZM5 1H6V2H5V3H4V2H2V3H1V2H2V1H4V0H5V1ZM7 5H4V7H7V5Z";
+      var editIconPath = "M2 6H4V7H3V8H0V5H1V4H2V6ZM5 6H4V5H5V6ZM6 5H5V4H6V5ZM3 4H2V3H3V4ZM7 4H6V3H7V4ZM4 3H3V2H4V3ZM8 3H7V2H8V3ZM5 2H4V1H5V2ZM7 2H6V1H7V2ZM6 1H5V0H6V1Z";
+      var trashIconPath = "M3 2H5V1H6V2H8V3H7V8H1V3H0V2H2V1H3V2ZM2 3V7H6V3H2ZM5 1H3V0H5V1Z";
+      var saveIconPath = "M2 6H1V5H2V6ZM5 6H4V5H5V6ZM1 5H0V4H1V5ZM3 5H2V4H3V5ZM6 5H5V4H6V5ZM4 4H3V3H4V4ZM7 4H6V3H7V4ZM5 3H4V2H5V3ZM8 3H7V2H8V3Z";
+      var cancelIconPath = "M1 1H2V2H3V3H5V2H6V1H7V2H6V3H5V5H6V6H7V7H6V6H5V5H3V6H2V7H1V6H2V5H3V3H2V2H1";
+      var restoreIconPath = "M7 8H4V7H7V8ZM8 7H7V3H8V7ZM3 2H7V3H3V5H2V4H1V3H0V2H1V1H2V0H3V2Z";
+      var deleteIconPath = "M3 8H1V7H3V8ZM8 8H7V7H8V8ZM1 7H0V5H1V7ZM4 7H3V5H4V7ZM7 7H6V6H7V7ZM6 6H5V5H6V6ZM3 5H1V3H3V5ZM5 5H4V3H5V5ZM1 3H0V1H1V3ZM4 3H3V1H4V3ZM6 3H5V2H6V3ZM7 2H6V1H7V2ZM3 1H1V0H3V1ZM8 1H7V0H8V1Z";
+
+      var notes = [];
+      var trashedNotes = [];
+
+      var focusedNotes = notes
+      var index = 0;
+      
+      function contextChange(newContext) {
+        if (newContext === 'view') {
+          elBtnNew.disabled = false;
+          elBtnUpdate.disabled = false;
+          elBtnOpenTrash.disabled = false;
+
+          elBtnNew.classList.remove('dashed');
+          elBtnOpenTrash.classList.remove('dashed');
+          elNote.style.borderStyle = 'solid';
+          elNoteVisualDetail.style.borderBottomStyle = 'solid';
+          elNoteVisualDetail.style.borderLeftStyle = 'solid';
+
+          elNoteText.style.display = 'block';
+          elNoteEditText.style.display = 'none';
+
+          elNoteFooter.classList.add('invisible');
+          elBtnNoteRightIcon.setAttribute('d', editIconPath);
+          elBtnNoteLeftIcon.setAttribute('d', trashIconPath);
+
+          elBtnNew.onclick = function() {contextChange('new')};
+          elBtnUpdate.onclick = getNotes;
+          elBtnOpenTrash.onclick = function() {contextChange('trash')};
+
+          elBtnNoteRight.onclick = function () {contextChange('edit')};
+          elBtnNoteLeft.onclick = trashNote;
+
+          getNotes()
+        } 
+        else if (newContext === 'new') {
+          elBtnUpdate.disabled = true;
+          elBtnOpenTrash.disabled = true;
+
+          elBtnNew.classList.add('dashed');
+          elNoteFooter.classList.remove('invisible');
+          elBtnNext.classList.add('invisible');
+          elBtnPrev.classList.add('invisible');
+
+          elNoteText.style.display = 'none';
+          elNoteEditText.style.display = 'block';
+          elNoteEditText.value = "";
+
+          elBtnNoteRightIcon.setAttribute('d', saveIconPath);
+          elBtnNoteLeftIcon.setAttribute('d', cancelIconPath);
+
+          elBtnNew.onclick = function () {contextChange('view')}
+          elBtnNoteRight.onclick = newNote
+          elBtnNoteLeft.onclick = function () {contextChange('view')}
+        } 
+        else if (newContext === 'trash') {
+          elBtnNew.disabled = true;
+
+          elBtnOpenTrash.classList.add('dashed');
+          elNote.style.borderStyle = 'dashed';
+          elNoteVisualDetail.style.borderBottomStyle = 'dashed';
+          elNoteVisualDetail.style.borderLeftStyle = 'dashed';
+
+          elNoteFooter.classList.add('invisible');
+          elBtnNoteRightIcon.setAttribute('d', restoreIconPath);
+          elBtnNoteLeftIcon.setAttribute('d', deleteIconPath);
+
+          elBtnOpenTrash.onclick = function() {contextChange('view')}
+          elBtnUpdate.onclick = getTrash
+
+          elBtnNoteRight.onclick = restore
+          elBtnNoteLeft.onclick = deleteForever
+
+          getTrash()
+        }
+        else if (newContext === 'edit') {
+          elBtnNew.disabled = true;
+          elBtnUpdate.disabled = true;
+          elBtnOpenTrash.disabled = true;
+
+          elBtnNext.classList.add('invisible');
+          elBtnPrev.classList.add('invisible');
+
+          elNoteText.style.display = 'none';
+          elNoteEditText.style.display = 'block';
+          elNoteEditText.value = focusedNotes[index].text;
+
+          elBtnNoteRightIcon.setAttribute('d', saveIconPath);
+          elBtnNoteLeftIcon.setAttribute('d', cancelIconPath);
+
+          elBtnNoteRight.onclick = editNote
+          elBtnNoteLeft.onclick = function () {contextChange('view')}
+        } 
+      }
+
+      function navegateNote(dir) { // * OK
+        index = Math.max(0, Math.min(focusedNotes.length - 1, index + dir))
+        drawNote()
+      }
+
+      function drawNote() { // * OK
+        var note = focusedNotes[index]
+        if (!note) {
+          elNoteText.innerText = "Nothing Here";
+          elBtnPrev.classList.add('invisible');
+          elBtnNext.classList.add('invisible');
+          elNoteFooter.classList.add('invisible');
+          return;
+        }
+        elNoteText.innerText = note.text;
+        elNoteFooter.classList.remove('invisible');
+        elBtnPrev.classList.remove('invisible');
+        elBtnNext.classList.remove('invisible');
+        if (index === 0) {
+          elBtnPrev.classList.add('invisible');
+        } 
+        if (index === focusedNotes.length - 1) {
+          elBtnNext.classList.add('invisible');
+        }
+      }
+
+      var elContainer = document.getElementById('container');
+
+      function turnContent() { // * OK
+        var parent = elContainer.parentElement;
+        var parentWidth = parent.clientWidth;
+        var parentHeight = parent.clientHeight;
+
+        if (elBtnTurn.classList.contains('turned')) {
+          elContainer.classList.remove('turned');
+          elBtnNew.classList.remove('turned');
+          elBtnUpdate.classList.remove('turned');
+          elBtnTurn.classList.remove('turned');
+          elBtnTurnIcon.setAttribute('d', turnIconLeftPath);
+          elBtnOpenTrash.classList.remove('turned');
+          elContainer.style.width = w + 'px';
+          elContainer.style.height = h + 'px';
+          return;
+        }
+
+        elContainer.classList.add('turned');
+        elBtnNew.classList.add('turned');
+        elBtnUpdate.classList.add('turned');
+        elBtnTurn.classList.add('turned');
+        elBtnTurnIcon.setAttribute('d', turnIconRightPath);
+        elBtnOpenTrash.classList.add('turned');
+        elContainer.style.width = h + 'px';
+        elContainer.style.height = w + 'px';
+      }
+
+      // ---------- buscar dados ----------
+      function request(method, url, body, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState !== 4) return;
+          if (xhr.status >= 200 && xhr.status < 300) {
+            var data = null;
+            try { data = JSON.parse(xhr.responseText); } catch (e) {}
+            callback(null, data);
+          } else {
+            callback(xhr.status || 'Server error', null);
+          }
+        };
+        xhr.send(body ? JSON.stringify(body) : null);
+      }
+
+      function getNotes() {
+        request('GET', '/api/notes', null, function (error, data) {
+          if (error) alert('Error ' + error);
+          notes = data || notes;
+          focusedNotes = notes;
+          index = Math.max(Math.min(index, focusedNotes.length - 1), 0);
+          drawNote()
+        });
+      }
+
+      function getTrash() {
+        request('GET', '/api/trash', null, function (error, data) {
+          if (error) alert('Error ' + error);
+          trashedNotes = data || trashedNotes;
+          focusedNotes = trashedNotes;
+          index = Math.max(Math.min(index, focusedNotes.length - 1), 0);
+          drawNote()
+        });
+      }
+
+      function newNote() {
+        var noteText = elNoteEditText.value;
+        if (!noteText) return alert('Text is empty');
+        request('POST', '/api/notes', { text: noteText }, function (error, data) {
+          if (error) return alert('Error ' + error);
+          contextChange('view')
+        });
+      }
+
+      function editNote() {
+        var note = focusedNotes[index];
+        var noteText = elNoteEditText.value;
+        if (!noteText) return alert('Text is empty');
+        request('PUT', '/api/notes/' + note.id, { text: noteText }, function (error, data) {
+          if (error) return alert('Error ' + error);
+          contextChange('view')
+        });
+      }
+
+      function trashNote() {
+        var note = focusedNotes[index];
+        request('DELETE', '/api/notes/' + note.id, null, function (error) {
+          if (error) return alert('Error ' + error);
+          getNotes()
+        });
+      }
+
+      function restore() {
+        var note = focusedNotes[index];
+        request('POST', '/api/trash/' + note.id + '/restore', null, function (error, data) {
+          if (error) return alert('Error ' + error);
+          getTrash()
+        });
+      }
+
+      function deleteForever() {
+        var note = focusedNotes[index];
+        request('DELETE', '/api/trash/' + note.id, null, function (error) {
+          if (error) return alert('Error ' + error);
+          getTrash()
+        });
+      }
+
+      window.onresize = function () {
+        if (elBtnTurn.classList.contains('turned')) {
+          elBtnTurn.classList.remove('turned');
+          turnContent();
+        }
+      };
+
+      contextChange('view')
+    </script>
+  </body>
+</html>
