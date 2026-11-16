@@ -7,14 +7,22 @@ const path = require('path');
 // Server config
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_PATH = path.join(__dirname, process.env.DATA_PATH || 'data');
-const NOTES_FILE = path.join(DATA_PATH, process.env.NOTES_FILE || 'notes.json');
-const TRASH_FILE = path.join(DATA_PATH, process.env.TRASH_FILE || 'trash.json');
+
+// Data files
+const DATA_PATH = path.join(__dirname,'data');
+const NOTES_FILE = path.join(DATA_PATH, 'notes.json');
+const TRASH_FILE = path.join(DATA_PATH, 'trash.json');
 
 // Notes config
-const MAX_TEXT_LENGTH = process.env.MAX_TEXT_LENGTH || 200;
-const TRASH_DAYS = process.env.TRASH_DAYS || 1;
+const MAX_TEXT_LENGTH = 160;
+const TRASH_DAYS = 1;
 const DAY_TO_MS = 24 * 60 * 60 * 1000;
+
+// Create data folder if it doesn't exist
+fs.mkdirSync(DATA_PATH, { recursive: true });
+[NOTES_FILE, TRASH_FILE].forEach(function (file) {
+  if (!fs.existsSync(file)) fs.writeFileSync(file, '[]');
+});
 
 // Read/write json
 function read(file) {
@@ -22,7 +30,7 @@ function read(file) {
     const data = JSON.parse(fs.readFileSync(file, 'utf8'));
     return Array.isArray(data) ? data : [];
   } catch (e) {
-    return []; // arquivo ainda não existe
+    return []; 
   }
 }
 
@@ -60,10 +68,15 @@ app.use('/', function (req, res, next) {
   next();
 });
 
+// Uncomment to log requests
 // app.use((req, res, next) => {
 //   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
 //   next();
 // });
+
+app.get('/health', function (req, res) {
+  res.json({ ok: true });
+});
 
 // Notes routes
 app.get('/api/notes', function (req, res) {

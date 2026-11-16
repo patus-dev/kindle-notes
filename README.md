@@ -2,7 +2,7 @@
 
 A tiny notes website built to run on the **Kindle's experimental web browser**.
 
-This solves a very small problem: I wanted a place to write down short notes and
+This solves a very small problem: I wanted a place to jot down short notes and
 read them on an e-ink screen, from any of my devices. It is a minuscule problem,
 but the result turned out to be a genuinely useful little tool, so here it is.
 
@@ -20,9 +20,9 @@ but the result turned out to be a genuinely useful little tool, so here it is.
 - **One note at a time**, with previous / next arrows (they only show up when
   there is a note on that side).
 - **Create, edit and delete** short notes.
-- **Trash on the server**: deleted notes are kept for a configurable time
-  (1 day by default), can be **restored**, and are removed for good after that
-  or when deleted from the trash. Every device shares the same trash.
+- **Trash on the server**: deleted notes are kept for 1 day, can be
+  **restored**, and are removed for good after that or when deleted from the
+  trash. Every device shares the same trash.
 - **Manual refresh**: the page updates when you press the refresh button, with
   no polling and no automatic redraws, which is friendlier to e-ink.
 - **Flip mode**: rotates the note card and the header icons so you can use the
@@ -33,8 +33,9 @@ but the result turned out to be a genuinely useful little tool, so here it is.
   using `XMLHttpRequest`, in a single file, with no build step and no
   dependencies.
 - **No external database**: the `data/` folder *is* the database. Notes and
-  trash live in two small JSON files (`notes.json` and `trash.json`), written
-  atomically (write to a temp file, then rename).
+  trash live in two small JSON files (`notes.json` and `trash.json`), created
+  automatically on the first run and written atomically (write to a temp file,
+  then rename).
 
 ## Planned
 
@@ -80,21 +81,16 @@ Inside a note: **edit / save / restore** on the right, and
 | `DELETE` | `/api/trash/:id`         | Permanently delete a note |
 
 All responses are sent with `Cache-Control: no-store`, because the Kindle
-browser caches aggressively. Text longer than the limit is truncated by the
-server.
+browser caches aggressively. Notes are limited to 160 characters, and longer
+text is truncated by the server.
 
 ## Configuration
 
-Everything is optional and set through environment variables:
+Port is optional and set through environment variables:
 
 | Variable          | Default      | Description |
 | ----------------- | ------------ | ----------- |
 | `PORT`            | `3000`       | Port the server listens on |
-| `DATA_PATH`       | `data`       | Data folder, relative to the app folder |
-| `NOTES_FILE`      | `notes.json` | Notes file name inside `DATA_PATH` |
-| `TRASH_FILE`      | `trash.json` | Trash file name inside `DATA_PATH` |
-| `MAX_TEXT_LENGTH` | `200`        | Max characters per note |
-| `TRASH_DAYS`      | `1`          | Days a deleted note stays in the trash |
 
 ## Running
 
@@ -105,12 +101,19 @@ npm install
 node server.js
 ```
 
-On start, the server prints the local network addresses you can open from the
-Kindle, for example `http://192.168.0.10:3000`.
+On start, the server creates the `data/` folder if needed and prints the local
+network addresses you can open from the Kindle, for example
+`http://192.168.0.10:3000`.
 
 ### With Docker
 
-A `Dockerfile` is included to bring everything up quickly, build and run it:
+A `Dockerfile` is included to bring everything up quickly.
+
+The container runs as the unprivileged `node` user, so the `data/` folder is
+created empty and owned by it. A `.dockerignore` keeps your local `data/` and
+`node_modules` out of the image.
+
+Build and run it:
 
 ```bash
 # build the image
@@ -124,13 +127,13 @@ Then open `http://<your-server-ip>:3000` in the Kindle browser.
 
 ### Where the data lives
 
-The database is the `data/` folder (`notes.json` and `trash.json`), and it
-stays **inside the container**. The `data/` folder from the repository is
-copied into the image, and the server reads and writes it there.
+The database is the `data/` folder, and it stays **inside the container**. On
+startup the server creates the folder and the two files (`notes.json` and
+`trash.json`) if they don't exist yet, so there is nothing to copy or
+configure.
 
 - Stopping, starting or restarting the container keeps your notes.
-- Removing the container (`docker rm`) or rebuilding the image and creating a
-  new container starts again from the `data/` that was in the repository.
+- Removing the container (`docker rm`) starts again with an empty database.
 
 If you want the notes to survive that too, mount a volume on `/app/data`
 (optional):
@@ -141,9 +144,6 @@ docker run -d --name kindle-notes \
   -v kindle-notes-data:/app/data \
   kindle-notes
 ```
-
-On the first run, Docker fills the volume with the `data/` folder that ships
-with the image. From then on the volume is the source of truth.
 
 The same commands work with Podman: just replace `docker` with `podman`.
 
@@ -162,15 +162,20 @@ The same commands work with Podman: just replace `docker` with `podman`.
 
 ```
 .
+├── .dockerignore
+├── .gitignore
 ├── Dockerfile
+├── LICENSE
 ├── README.md
 ├── package.json
 ├── server.js        # Express API + static file server
 ├── public/
 │   └── index.html   # the whole front-end: HTML + CSS + JS
-└── data/            # the database: notes.json and trash.json
+│   └── favicon.ico  # my icon
+└── data/            # the database, created at runtime (not in the repo)
 ```
 
 ## License
 
-Free for anyone to download, use, modify and share. Released under the MIT License.
+Free for anyone to download, use, modify and share. Released under the
+[MIT License](LICENSE).
