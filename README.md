@@ -170,9 +170,10 @@ The same commands work with Podman: just replace `docker` with `podman`.
 ├── package.json
 ├── server.js        # Express API + static file server
 ├── public/
-│   └── index.html   # the whole front-end: HTML + CSS + JS
-│   └── favicon.ico  # my icon
-└── data/            # the database, created at runtime (not in the repo)
+│   └── index.html         # the whole front-end: HTML + CSS + JS
+│   └── favicon.ico        # personalized icon
+│   └── cascadia-code.ttf  # personalized font
+└── data/                  # the database, created at runtime (not in the repo)
 ```
 
 ## License
