@@ -14,7 +14,7 @@ const NOTES_FILE = path.join(DATA_PATH, 'notes.json');
 const TRASH_FILE = path.join(DATA_PATH, 'trash.json');
 
 // Notes config
-const MAX_TEXT_LENGTH = 160;
+const MAX_TEXT_LENGTH = 200;
 const TRASH_DAYS = 1;
 const DAY_TO_MS = 24 * 60 * 60 * 1000;
 
